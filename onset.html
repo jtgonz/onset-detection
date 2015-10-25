@@ -1,0 +1,27 @@
+<html>
+
+<head>
+  <!-- fonts -->
+  <link href='https://fonts.googleapis.com/css?family=Roboto:400,300,500' rel='stylesheet' type='text/css'>
+  
+  <!-- styles -->
+  <link rel='stylesheet' type='text/css' href='onset.css'>
+  
+  <!-- js -->
+  <script src='onset.js'></script>
+</head>
+
+<body>
+  <h1> Sampler </h1>
+  
+  <div class='input-audio'>
+    <form onsubmit='return loadSoundFromSource()'>
+      <input id='input-field' placeholder="awesome-sample.mp3"></input>
+    </form>
+  </div>
+
+  <canvas id='sample-waveform' width='600' height='141'></canvas>
+
+</body>
+
+</html>
