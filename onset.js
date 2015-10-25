@@ -1,13 +1,18 @@
 // load in sound, plot waveform (maybe using D3?)
 // do onset detection
 
+// TODO: plot waveform of loaded sample
+// TODO: load first three-ish seconds of sample into AudioBufffer
+
 // constants
 var SAMPLE_RATE = 44100;
 
 // get AudioContext -- this is where the audio graph resides
 var audioCtx = new (window.AudioContext || window.webkitAudioContext)
 
-var canvasCtx;  // for drawing waveform
+var canvas, canvasCtx;  // for drawing waveform
+
+var sound;      // AudioBuffer to store sound
 
 // buffer to hold amplitude values of sample
 //var sample_seconds = 2;
@@ -26,7 +31,6 @@ function loadSoundFromSource () {
 
   // create an AudioBufferSourceNode
   var source = audioCtx.createBufferSource();
-  console.log(source)
 
   var request = new XMLHttpRequest();
 
@@ -36,19 +40,25 @@ function loadSoundFromSource () {
   // this function is called whenever the state of the request changes
   request.onload = function () {
 
-    // at this point, audioData is an array of raw binary data representing
-    // the audio file. It needs to be decoded, right?
+    // audioData is an ArrayBuffer, and it has no format to speak of. The
+    // individual bytes do NOT represent amplitude values. Needs to be decoded
     var audioData = request.response;
 
     // asynchronusly decode audio file data contained in an arraybuffer
     audioCtx.decodeAudioData(audioData,
 
-      // called on successful decoding
+      // called on successful decoding. 'buffer' is an AudioBuffer. We can get
+      // the data from each channel as a Float32Array by calling
+      // buffer.getChannelData(channel). Each element of the returned array
+      // represents an amplitude value at that point.
       function (buffer) {
+        sound = buffer;
+        console.log('heloooooo')
+        drawWaveform(sound.getChannelData(0));
+
         // store decoded arraybuffer in AudioBufferSourceNode
-        source.buffer = buffer;
-        source.connect(audioCtx.destination);
-        source.connect(analyser);
+        //source.buffer = buffer;
+        //source.connect(audioCtx.destination);
       },
 
       function (e) {
@@ -68,12 +78,12 @@ function loadSoundFromSource () {
 window.onload = function () {
 
   // get canvas context
-  var canvas = document.getElementById('sample-waveform');
+  canvas = document.getElementById('sample-waveform');
   var height = canvas.height - 1;
 
   canvasCtx = canvas.getContext('2d');
   canvasCtx.lineWidth = 1;
-  canvasCtx.strokeStyle = '#FF0080'
+  canvasCtx.strokeStyle = '#999999'
 
   // fill buffer with nonsense
   var noise = new Float32Array(88200);
@@ -81,13 +91,14 @@ window.onload = function () {
     noise[i] = Math.random() * 2 - 1;
   }
 
-  drawWaveform(noise, height);
+  //drawWaveform(noise, height);
 
 }
 
 // draw waveform on canvas, sample every 256 points
 function drawWaveform (array, height, scale) {
-  var scale = 70 || scale;
+  var height = height || canvas.height - 1;
+  var scale = scale || 70;
   var mid = height / 2;
 
   canvasCtx.beginPath();
