@@ -1,18 +1,19 @@
 // load in sound, plot waveform (maybe using D3?)
 // do onset detection
 
-// TODO: plot waveform of loaded sample
-// TODO: load first three-ish seconds of sample into AudioBufffer
+// TODO: modify drawWaveform to automatically scale to max amplitude
+// TODO: load ONLY first three-ish seconds of sample into AudioBufffer
 
 // constants
-var SAMPLE_RATE = 44100;
+var sample_rate = 44100;
+var sample_secs = 2;  
 
-// get AudioContext -- this is where the audio graph resides
-var audioCtx = new (window.AudioContext || window.webkitAudioContext)
+// get AudioContext -- this is where the audio graph resides. Also, create
+// three-and-a-half-second buffer to hold the sound
+var audioCtx = new (window.AudioContext || window.webkitAudioContext);
+var sound = audioCtx.createBuffer(2, sample_rate * sample_secs, sample_rate);
 
 var canvas, canvasCtx;  // for drawing waveform
-
-var sound;      // AudioBuffer to store sound
 
 // buffer to hold amplitude values of sample
 //var sample_seconds = 2;
@@ -52,9 +53,12 @@ function loadSoundFromSource () {
       // buffer.getChannelData(channel). Each element of the returned array
       // represents an amplitude value at that point.
       function (buffer) {
-        sound = buffer;
-        console.log('heloooooo')
-        drawWaveform(sound.getChannelData(0));
+        // get first three seconds of buffer
+        var num_samples = sample_rate * sample_secs;
+        sound.copyToChannel(buffer.getChannelData(0).slice(0, num_samples), 0);
+        sound.copyToChannel(buffer.getChannelData(1).slice(0, num_samples), 1);
+
+        drawWaveform(sound.getChannelData(0), canvas);
 
         // store decoded arraybuffer in AudioBufferSourceNode
         //source.buffer = buffer;
@@ -83,7 +87,7 @@ window.onload = function () {
 
   canvasCtx = canvas.getContext('2d');
   canvasCtx.lineWidth = 1;
-  canvasCtx.strokeStyle = '#999999'
+  canvasCtx.strokeStyle = '#FF8000'
 
   // fill buffer with nonsense
   var noise = new Float32Array(88200);
@@ -96,19 +100,26 @@ window.onload = function () {
 }
 
 // draw waveform on canvas, sample every 256 points
-function drawWaveform (array, height, scale) {
-  var height = height || canvas.height - 1;
-  var scale = scale || 70;
+function drawWaveform (array, canvas) {
+  var height = canvas.height - 1;
   var mid = height / 2;
 
+  // scale based on largest amplitude value
+  var abs = Math.abs;
+  var scale = mid / array.reduce(function (prev, next, i) {
+    if (i % 256) return prev;
+    return abs(prev) > abs(next) ? prev : abs(next);
+  });
+
   canvasCtx.beginPath();
+  canvasCtx.moveTo(0, mid);
 
   // plot line proporational to avg amplitude, or 1px high if no data
-  for (var i = 0; i < 135600; i += 256) {
+  for (var i = 0; i < canvas.width * 256; i += 256) {
     var y = array[i] ? mid - array[i] * scale + 0.5 : mid - 0.5;
     var x = i/256+0.5;
 
-    canvasCtx.moveTo(x, y > mid ? mid - 1 : mid);
+    canvasCtx.lineTo(x, y > mid ? mid - 1 : mid);
     canvasCtx.lineTo(x, y);
   }
 
