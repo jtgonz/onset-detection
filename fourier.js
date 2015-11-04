@@ -1,12 +1,28 @@
+/*
+Various Fourier Transforms (dft, fft, stft)
+
+Not the fastest code, since I wanted to try writing in a functional style. We
+waste time iterating over arrays for multiple map/reduce/filter operations -- a
+more optimized version should probably use loops or MATLAB-style vectorized
+arithmetic (not sure how to do that in JavaScript though).
+
+Good reference: http://web.eecs.umich.edu/~fessler/course/451/l/pdf/c6.pdf
+*/
+
 "use strict";
 
 let tau = 2 * Math.PI;  // giving this a shot (http://tauday.com/tau-manifesto)
 
 /* Generator function similar to Python xrange */
-function* xrange (n) {
-  let i = 0;
-  while (i < n)
-    yield i++;
+function xrange(n) {
+  var a = {};
+  a[Symbol.iterator] = function* (fn) {
+    var i = 0;
+    while (i < n)
+      yield fn ? fn(i++) : i++;
+  };
+  a.map = fn => [...a[Symbol.iterator](fn)];
+  return a;
 }
 
 /* Return an array of N equally spaced points around the unit cirlce */
@@ -57,7 +73,7 @@ function fft_rx2 (re, im) {
   let N = re.length;
   if (N.toString(2) % 10) // return immediately if N is not power of 2
     return;
-  else if (N <= 1024)       // if N is sufficiently small, compute dft directly
+  else if (N <= 32)       // if N is sufficiently small, compute dft directly
     return dft_direct(re, im);
 
   let W = discrete_circle(N); // N evenly spaced points around the unit circle
@@ -81,7 +97,18 @@ function fft_rx2 (re, im) {
 }
 
 /* Short-Time Fourier Transform */
-function stft (re, im, h) {}
+function stft (re, im, N, h) {
+  // could i just multiply each window by the windowing function and then take
+  // the fft of that? umm.. YERS I CAN
+}
+
+/* Hamming window */
+function hamming_window (N) {
+
+  [xrange(N)]
+
+  return 0.54 - 0.46 * np.cos(2*np.pi*a/2047)
+}
 
 function make_sample_sine_wave (k, N) {
   k = k || 10;
