@@ -31,11 +31,6 @@ function cpx_sub(a, b) {
 function euclid_norm (a) {
   return Math.sqrt(a[0]*a[0] + a[1]*a[1]);
 }
-/* does this make sense?
-let cpx_mult = (a, b) => [a[0]*b[0] - a[1]*b[1], a[0]*b[1] + a[1]*b[0]];
-let cpx_add = (a, b) => [a[0]+b[0], a[1]+b[1]];
-let l1_norm = (a, b) => Math.sqrt(a[0]*a[0] + a[1]*a[1]);
-*/
 
 /* Direct computation of Discrete Fourier Transform */
 function dft_direct (re, im) {
@@ -62,27 +57,31 @@ function fft_rx2 (re, im) {
   let N = re.length;
   if (N.toString(2) % 10) // return immediately if N is not power of 2
     return;
-  else if (N <= 32)       // if N is sufficiently small, compute dft directly
+  else if (N <= 1024)       // if N is sufficiently small, compute dft directly
     return dft_direct(re, im);
 
   let W = discrete_circle(N); // N evenly spaced points around the unit circle
   im = im || re.map( a => 0 ); // set imaginary values to zero if not provided
 
   // compute N/2-point DFT for even and odd samples of input array
-  let s_1 = fft_rx2(...[re, im].map( a => a.filter( (_, i) => !(i % 2) ) ));
-  let s_2 = fft_rx2(...[re, im].map( a => a.filter( (_, i) => i % 2 ) ));
+  let S_1 = fft_rx2(...[re, im].map( a => a.filter( (_, i) => !(i % 2) ) ));
+  let S_2 = fft_rx2(...[re, im].map( a => a.filter( (_, i) => i % 2 ) ));
 
-  // for all frequencies k in N/2-1
+  // mutiply by twiddle factor. later, exploit symmetry W[k+N/2] = -W[k]
+  let G_2 = S_2.map( (a, k) => cpx_mult(a, W[k % N]) );
+
+  // combine for all frequencies k in N/2-1
   let X = [];
   for (let k of xrange(N/2)) {
-    // mutiply by twiddle factor. then, exploit symmetry W[k+N/2] = -W[k]
-    let g_2 = s_2.map( (a, n) => cpx_mult(a, W[n * k % N]) );
-    X[k] = cpx_add(s_1[k], g_2[k]);
-    X[k + N/2] = cpx_sub(s_1[k], g_2[k]);
+    X[k] = cpx_add(S_1[k], G_2[k]);
+    X[k + N/2] = cpx_sub(S_1[k], G_2[k]);
   }
 
   return X;
 }
+
+/* Short-Time Fourier Transform */
+function stft (re, im, h) {}
 
 function make_sample_sine_wave (k, N) {
   k = k || 10;
@@ -90,7 +89,7 @@ function make_sample_sine_wave (k, N) {
   
   let x = [];
   for (let i of xrange(N)) {
-    x[i] = Math.sin(2*Math.PI*k*i/N);
+    x[i] = Math.sin(tau*k*i/N);
   }
 
   return x;
