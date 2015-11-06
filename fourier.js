@@ -6,18 +6,18 @@ waste time iterating over arrays for multiple map/reduce/filter operations -- a
 more optimized version should probably use loops or MATLAB-style vectorized
 arithmetic (not sure how to do that in JavaScript though).
 
-Good reference: http://web.eecs.umich.edu/~fessler/course/451/l/pdf/c6.pdf
+Reference for FFT: http://web.eecs.umich.edu/~fessler/course/451/l/pdf/c6.pdf
 */
 
 "use strict";
 
 let tau = 2 * Math.PI;  // giving this a shot (http://tauday.com/tau-manifesto)
 
-/* Generator function similar to Python xrange */
+/* Generator function similar to Python xrange -- this is THE BEST, JERRY */
 function xrange(n) {
-  var a = {};
+  let a = {};
   a[Symbol.iterator] = function* (fn) {
-    var i = 0;
+    let i = 0;
     while (i < n)
       yield fn ? fn(i++) : i++;
   };
@@ -32,20 +32,6 @@ function discrete_circle (N) {
     W[m] = [Math.cos(tau * m / N), Math.sin(tau * m / N)];
   }
   return W;
-}
-
-/* Complex multiplication and addtion */
-function cpx_mult(a, b) {
-  return [a[0]*b[0] - a[1]*b[1], a[0]*b[1] + a[1]*b[0]];
-}
-function cpx_add(a, b) {
-  return [a[0]+b[0], a[1]+b[1]];
-}
-function cpx_sub(a, b) {
-  return [a[0]-b[0], a[1]-b[1]];
-}
-function euclid_norm (a) {
-  return Math.sqrt(a[0]*a[0] + a[1]*a[1]);
 }
 
 /* Direct computation of Discrete Fourier Transform */
@@ -64,9 +50,6 @@ function dft_direct (re, im) {
          re.map( (_, n) => cpx_mult([re[n], im[n]], W[n * k % N]) )
            .reduce( (a, b) => cpx_add(a, b) ));
 }
-
-/* Get array of magnitudes from complex-valued array */
-function get_magnitude (x) { return x.map( a => euclid_norm(a) ); }
 
 /* Radix-2 Fast Fourier Transform (Cooley-Tukey algorithm) */
 function fft_rx2 (re, im) {
@@ -98,35 +81,40 @@ function fft_rx2 (re, im) {
 
 /* Short-Time Fourier Transform */
 function stft (re, im, N, h) {
-  // could i just multiply each window by the windowing function and then take
-  // the fft of that? umm.. YERS I CAN
+  N = N || 2048; h = h || 441; // default window and hop size
+  im = im || re.map( a => 0 ); // set imaginary values to zero if not provided
+  if (N.toString(2) % 10) return; // check that N is a power of 2
+
+  // calculate number of frames (evaluate fft on each frame)
+  frames = Math.floor((re.length - N) / h);
+
+  // hamming window will attenuate edges of frame
+  let w = hamming_window(N);
+
+  // for each frame in signal, compute fft
+  return xrange(frames).map( n =>
+    fft_rx2( w.map((a, i) => a * re[n*h+i]), w.map((a, i) => a * im[n*h+i]) ));
 }
 
-/* Hamming window */
+/* Utilities */
+/* Get array of magnitudes from complex-valued array */
+function get_magnitude (x) { return x.map( a => euclid_norm(a) ); }
+
 function hamming_window (N) {
-
-  [xrange(N)]
-
-  return 0.54 - 0.46 * np.cos(2*np.pi*a/2047)
+  return xrange(N).map( a => 0.54 - 0.46 * Math.cos(tau*a/N) );
 }
-
-function make_sample_sine_wave (k, N) {
-  k = k || 10;
-  N = N || 2048;
-  
-  let x = [];
-  for (let i of xrange(N)) {
-    x[i] = Math.sin(tau*k*i/N);
-  }
-
-  return x;
-
-/*
-  numbers = [1, 2, 3, 4 ... N]
-  numbers.map()
-
-  return xrange(N).map( a => Math.sin(2*Math.PI*k*a/N) )
-*/
-
-
+function sample_sine_wave (k, N) {
+  return xrange(N).map( i => Math.sin(tau*(k||10)*i/(N||2048)) );
+}
+function cpx_mult(a, b) {
+  return [a[0]*b[0] - a[1]*b[1], a[0]*b[1] + a[1]*b[0]];
+}
+function cpx_add(a, b) {
+  return [a[0]+b[0], a[1]+b[1]];
+}
+function cpx_sub(a, b) {
+  return [a[0]-b[0], a[1]-b[1]];
+}
+function euclid_norm (a) {
+  return Math.sqrt(a[0]*a[0] + a[1]*a[1]);
 }
