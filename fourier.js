@@ -91,14 +91,22 @@ function stft (re, im, N, h) {
   // hamming window will attenuate edges of frame
   let w = hamming_window(N);
 
-  // for each frame in signal, compute fft
+  // for each frame in signal, multiply by hamming window and compute fft
   return xrange(frames).map( n =>
     fft_rx2( w.map((a, i) => a * re[n*h+i]), w.map((a, i) => a * im[n*h+i]) ));
 }
 
+/* Call stft(), but return magnitudes instead of complex numbers */
+function stft_magnitude (re, im, N, h) {
+  return stft(re, im, N, h).map( a => get_magnitudes(a) );
+}
+
+// get normalized frequencies
+
+
 /* Utilities */
 /* Get array of magnitudes from complex-valued array */
-function get_magnitude (x) { return x.map( a => euclid_norm(a) ); }
+function get_magnitudes (x) { return x.map( a => euclid_norm(a) ); }
 
 function hamming_window (N) {
   return xrange(N).map( a => 0.54 - 0.46 * Math.cos(tau*a/N) );

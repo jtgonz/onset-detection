@@ -6,17 +6,21 @@
 
 // constants
 var sample_rate = 44100;
-var sample_secs = 2;  
+var sample_secs = 3.5;  
 
 // get AudioContext -- this is where the audio graph resides. Also, create
 // three-and-a-half-second buffer to hold the sound
 var audioCtx = new (window.AudioContext || window.webkitAudioContext);
 var sound = audioCtx.createBuffer(2, sample_rate * sample_secs, sample_rate);
+var amplitudes;
 
 var canvas, canvasCtx;  // for drawing waveform
+var canvasWave, canvasSpect;
+
+var freqs;
 
 // buffer to hold amplitude values of sample
-//var sample_seconds = 2;
+//var sample_seconds = 2;}
 //var buffer = audioCtx.createBuffer(1, SAMPLE_RATE*sample_seconds, SAMPLE_RATE)
 
 /*
@@ -43,6 +47,7 @@ function loadSoundFromSource () {
 
     // audioData is an ArrayBuffer, and it has no format to speak of. The
     // individual bytes do NOT represent amplitude values. Needs to be decoded
+    // In general, you can only see data in an ArrayBuffer via a data view
     var audioData = request.response;
 
     // asynchronusly decode audio file data contained in an arraybuffer
@@ -58,15 +63,16 @@ function loadSoundFromSource () {
         sound.copyToChannel(buffer.getChannelData(0).slice(0, num_samples), 0);
         sound.copyToChannel(buffer.getChannelData(1).slice(0, num_samples), 1);
 
-        drawWaveform(sound.getChannelData(0), canvas);
+        amplitudes = sound.getChannelData(0);
+        drawWaveform(amplitudes, canvas);
 
-        // store decoded arraybuffer in AudioBufferSourceNode
-        //source.buffer = buffer;
-        //source.connect(audioCtx.destination);
+        console.log('about to do work');
+        freqs = stft_magnitude(amplitudes);
+        drawSpectrogram(freqs, canvasSpect);
       },
 
       function (e) {
-        console.log('there was promblem')
+        console.log('oh geez there was promblem')
       }
     );
   }
@@ -84,6 +90,8 @@ window.onload = function () {
   // get canvas context
   canvas = document.getElementById('sample-waveform');
   var height = canvas.height - 1;
+
+  canvasSpect = document.getElementById('sample-spectrogram');
 
   canvasCtx = canvas.getContext('2d');
   canvasCtx.lineWidth = 1;
@@ -126,31 +134,49 @@ function drawWaveform (array, canvas) {
   canvasCtx.stroke();
 }
 
-/*
-// draw waveform on canvas
-// Instead of just taking a sample every 256 elements, average over 256
-// elements at a time and use that average. But this is kinda slow and might
-// not be necessary
-function drawWaveformFromAvg (array, height, scale) {
+// draw spectrogram
+function drawSpectrogram (array, canvas, numbins) {
+  var numbins = numbins || 32;
+  var context = canvas.getContext('2d');
 
-  var scale = 100 || scale;
-  canvasCtx.beginPath();
+  // the color of the rectangle represents the normalized intensity of the
+  // frequency. should we use log? eh maybe
 
-  array.forEach( function (element, index) {
-    // average amplitudes over 256 samples
-    if (index % 256) return;
+  // get maximum and minimum values (might only need max, can modify this later)
+  var maxmin = array.reduce( function (a, b, i) {
+    if (i == 1) a = [Math.max(...a), Math.min(...a)];
+    return [Math.max(a[0], Math.max(...b)), Math.min(a[1], Math.min(...b))]
+  });
+  //var [maxval, minval] = maxmin;
+  var maxval = maxmin[0];
+  var minval = maxmin[1];
+  var rangeval = Math.log(maxval - minval); 
 
-    var avg = array.slice(index, index+256).reduce( function (prev, next) {
-      console.log(prev);
-      return prev + next;
-    }) / 256;
+  // calculate bin size (number of frequencies per bin) and bin height (height
+  // of each box in spectrogram)
+  var binsize = Math.floor(array.length / numbins);
+  var binheight = Math.floor(canvas.height / numbins);
 
-    // plot line proporational to avg amplitude
-    var x = index/256, y = height / 2 - avg * scale;
-    canvasCtx.moveTo(x, height / 2);
-    canvasCtx.lineTo(x, y);
+  // calculate frame width (width of each box in spectrogram)
+  var framewidth = canvas.width / array.length;
+  console.log(canvas.width);
+  console.log(array.length);
+  console.log(framewidth);
+
+  // draw a rectangle for every frequency bin for every frame
+  array.forEach( function (n, i) {
+
+    // get average magnitude in each frequency bin
+    n_binned = xrange(numbins).map(
+      a => n.slice(a*binsize, (a+1)*binsize).reduce((a,b) => a+b) / binsize );
+
+    // draw rectangle so that color represents the magnitude of the frequency
+    n_binned.forEach( function (k, j) {
+      context.fillStyle = 'hsl(' +
+        (255 - Math.floor(Math.log((k-minval))/rangeval*255)) +
+        ', 100%, 50%)';
+      context.fillRect(i*framewidth, (numbins-1-j)*binheight, Math.ceil(framewidth), binheight);
+    });
   });
 
-  canvasCtx.stroke();
 }
-*/
